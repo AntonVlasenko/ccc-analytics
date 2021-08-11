@@ -24,7 +24,8 @@ class News:
         apikey = a string, newsapi.org API key.
         news_sources = list of all english news sources. 
         news_sources_ids = list of unique identifiers of the news sources.
-        endpoints = list of endpoints to be called in order to gather data. 
+        endpoints = list of endpoints to be called in order to gather data.
+
     """
     def __init__(self, apikey: str):
         self.bucketname = 'news-bucket-antonvls'
@@ -101,7 +102,7 @@ class News:
 
     def _get_headlines_dataframes(self) -> map:
         """Getting the list of dataframes with clean and preprocessed data"""
-        self.get_top_headlines()
+        self._get_top_headlines()
         dataframes = [pd.DataFrame(response) for response in self.top_headlines_json]
         self.resulting_dataframes = map(self._clean_source, dataframes)
         return self.resulting_dataframes
@@ -140,4 +141,5 @@ class News:
 
 
 if __name__=='__main__':
-    news_object = News('d2e486602f2848b59a1b98548fdd4d56')
+    news_object = News('366297e1b71348ed84c543762da8cafe')
+    news_object.upload_data()
