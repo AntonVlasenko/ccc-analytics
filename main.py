@@ -141,5 +141,5 @@ class News:
 
 
 if __name__=='__main__':
-    news_object = News('366297e1b71348ed84c543762da8cafe')
+    news_object = News('b13583d49ad244a899b04634c2bafab2')
     news_object.upload_data()
