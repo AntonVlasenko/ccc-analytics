@@ -1,20 +1,17 @@
-# ee8041c722fb4fae8e367c5218deadf0
-# 331db66686a7483c93316a671c4d3630
-from pprint import pprint
-import requests
-import pandas as pd
-import logging
-import json
-
 import concurrent.futures
-import requests
-import time
+import datetime
+import json
+import logging
+import os
 
+import boto3 as boto3
+import pandas as pd
+import requests
 
 logger = logging.getLogger('news_aggregator')
 logger.setLevel(logging.DEBUG)
 
-fh = logging.FileHandler('spam.log')
+fh = logging.FileHandler('logs.log')
 fh.setLevel(logging.DEBUG)
 logger.addHandler(fh)
 
@@ -24,11 +21,13 @@ class News:
 
     """
     def __init__(self, apikey: str):
+        self.bucketname = 'news-bucket-antonvls'
         self.apikey = apikey
         self.news_sources = None
         self.news_sources_ids = None
         self.endpoints = list()
         self.out = list()
+        self.resulting_dataframes = map
 
     def _get_ids(self, sources_json: json) -> list:
         sources = sources_json['sources']
@@ -61,7 +60,6 @@ class News:
         self._get_news_sources()
         for _id in self.news_sources_ids:
             self.endpoints.append(f'https://newsapi.org/v2/top-headlines?sources={_id}&apiKey={self.apikey}')
-        print(self.endpoints)
         return self.endpoints
 
     def get_top_headlines(self) -> map:
@@ -79,27 +77,55 @@ class News:
                     data = str(type(exc))
                 finally:
                     self.out.append(data)
-                    print(str(len(self.out)), end="\r")
 
         self.out = map(lambda x: x.get('articles'), self.out)
         return self.out
 
     def _clean_source(self, dataframe: pd.DataFrame):
-        source_series = dataframe.loc[:, 'source'].apply(lambda x: x.get('name', None))
-        dataframe.loc[:, 'source'] = source_series
+        try:
+            source_series = dataframe.loc[:, 'source'].apply(lambda x: x.get('name', None))
+            dataframe.loc[:, 'source'] = source_series
+        except KeyError as errk:
+            logger.error(errk)
+            pass
         return dataframe
 
     def _get_headlines_dataframes(self) -> map:
         self.get_top_headlines()
-        pprint(self.out)
-        # resulting_df = pd.DataFrame()
         dataframes = [pd.DataFrame(response) for response in self.out]
-        resulting_dataframes = map(self._clean_source, dataframes)
-        return resulting_dataframes
+        self.resulting_dataframes = map(self._clean_source, dataframes)
+        return self.resulting_dataframes
+
+    def _save_data(self):
+        self._get_headlines_dataframes()
+        for dataframe in self.resulting_dataframes:
+            if dataframe.shape[0] > 1:
+                file_name = f'{datetime.datetime.now()}_headlines.csv'
+                news_source_folder = f'data/{dataframe.loc[1, "source"].replace("/", "")}'
+                if not os.path.exists(news_source_folder):
+                    os.mkdir(news_source_folder)
+                f_path = os.path.join(news_source_folder, file_name)
+                dataframe.to_csv(f_path)
 
 
+    def _upload_folder(self):
+        self._save_data()
+
+        session = boto3.Session(
+            aws_access_key_id='AKIAVK7PZNHLQBGR7TGL',
+            aws_secret_access_key='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',
+            region_name='eu-central-1'
+        )
+        s3 = session.resource('s3')
+        path = 'data/'
+        bucket = s3.Bucket(self.bucketname)
+        for subdir, dirs, files in os.walk(path):
+            for file in files:
+                full_path = os.path.join(subdir, file)
+                with open(full_path, 'rb') as data:
+                    bucket.put_object(Key=full_path[len(path):], Body=data)
+                logger.info(f'{full_path} has been uploaded')
 
 
 if __name__=='__main__':
-    news_object = News('9e3d610b20cd4b02be0c7a7bbb1a32fc')
-    pprint(news_object._get_headlines_dataframes())
+    news_object = News('d2e486602f2848b59a1b98548fdd4d56')
