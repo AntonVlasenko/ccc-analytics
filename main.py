@@ -124,9 +124,8 @@ class News:
         """Uploading data to S3 with the same folder structure"""
         self._save_data()
         session = boto3.Session(
-            # In real case access key will be sitting within a cofig file and being read by configparser:
-            aws_access_key_id='AKIAVK7PZNHLQBGR7TGL',
-            aws_secret_access_key='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',
+            # Use the standard AWS credential chain (environment, profile, or IAM role).
+            
             region_name='eu-central-1'
         )
         s3 = session.resource('s3')
@@ -141,5 +140,5 @@ class News:
 
 
 if __name__=='__main__':
-    news_object = News('b13583d49ad244a899b04634c2bafab2')
+    news_object = News(os.environ['NEWS_API_KEY'])
     news_object.upload_data()
